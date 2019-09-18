@@ -108,22 +108,22 @@ class Mupen64PlusEnv(gym.Env):
         self.observation_space = \
             spaces.Box(low=0, high=255, shape=(SCR_H, SCR_W, SCR_D))
 
-        self.action_space = spaces.MultiDiscrete([[-80, 80], # Joystick X-axis
-                                                  [-80, 80], # Joystick Y-axis
-                                                  [  0,  1], # A Button
-                                                  [  0,  1], # B Button
-                                                  [  0,  1], # RB Button
-                                                  [  0,  1], # LB Button
-                                                  [  0,  1], # Z Button
-                                                  [  0,  1], # C Right Button
-                                                  [  0,  1], # C Left Button
-                                                  [  0,  1], # C Down Button
-                                                  [  0,  1], # C Up Button
-                                                  [  0,  1], # D-Pad Right Button
-                                                  [  0,  1], # D-Pad Left Button
-                                                  [  0,  1], # D-Pad Down Button
-                                                  [  0,  1], # D-Pad Up Button
-                                                  [  0,  1], # Start Button
+        self.action_space = spaces.MultiDiscrete([161, # Joystick X-axis
+                                                  161, # Joystick Y-axis
+                                                  2, # A Button
+                                                  2, # B Button
+                                                  2, # RB Button
+                                                  2, # LB Button
+                                                  2, # Z Button
+                                                  2, # C Right Button
+                                                  2, # C Left Button
+                                                  2, # C Down Button
+                                                  2, # C Up Button
+                                                  2, # D-Pad Right Button
+                                                  2, # D-Pad Left Button
+                                                  2, # D-Pad Down Button
+                                                  2, # D-Pad Up Button
+                                                  2, # Start Button
                                                  ])
 
     def _base_load_config(self):
@@ -145,10 +145,26 @@ class Mupen64PlusEnv(gym.Env):
     def _validate_config(self):
         return
 
-    def _step(self, action):
+    def _pad_action(self, action):
+        # Newer versions of gym expect a non-negative action space. This
+        # disagrees with the controller class as inputs are expected to be in
+        # a range of -80 and +80 to handle the orientation of the joystick. The
+        # first two values in the requested action correspond to the X- and
+        # Y-axis of the joystick, respectively and should be subtracted by 80
+        # for proper coordination with the controller class. All other actions
+        # are in the expected range and should be left untouched.
+        if 'Discrete' not in str(self):
+            return [x - 80 if i < 2 else x for i, x in enumerate(action)]
+        else:
+            # Happens for discrete action spaces, in which case the action is
+            # already defined as expected and should return as-is.
+            return action
+
+    def step(self, action):
         #cprint('Step %i: %s' % (self.step_count, action), 'green')
+        action = self._pad_action(action)
         self._act(action)
-        obs = self._observe()
+        obs = self.observe()
         self.episode_over = self._evaluate_end_state()
         reward = self._get_reward()
 
@@ -167,7 +183,7 @@ class Mupen64PlusEnv(gym.Env):
             self._act(button) # Press
             self._act(ControllerState.NO_OP) # and release
 
-    def _observe(self):
+    def observe(self):
         #cprint('Observe called!', 'yellow')
 
         if self.config['USE_XVFB']:
@@ -204,14 +220,14 @@ class Mupen64PlusEnv(gym.Env):
         return False
 
     @abc.abstractmethod
-    def _reset(self):
+    def reset(self):
         cprint('Reset called!', 'yellow')
         self.reset_count += 1
 
         self.step_count = 0
-        return self._observe()
+        return self.observe()
 
-    def _render(self, mode='human', close=False):
+    def render(self, mode='human', close=False):
         if close:
             if hasattr(self, 'viewer') and self.viewer is not None:
                 self.viewer.close()
@@ -226,7 +242,7 @@ class Mupen64PlusEnv(gym.Env):
                 self.viewer = rendering.SimpleImageViewer()
             self.viewer.imshow(img)
 
-    def _close(self):
+    def close(self):
         cprint('Close called!', 'yellow')
         self.running = False
         self._kill_emulator()
