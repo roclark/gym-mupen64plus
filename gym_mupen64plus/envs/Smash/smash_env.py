@@ -51,22 +51,22 @@ class SmashEnv(Mupen64PlusEnv):
         super(SmashEnv, self).__init__()
         self._my_damage_tracker = damage_tracker.DamageTracker(self.frame_skip, playernum=1)
         self._their_damage_tracker = damage_tracker.DamageTracker(self.frame_skip, playernum=2)
-        self.action_space = spaces.MultiDiscrete([[-128, 127],  # Joystick X
-                                                  [-128, 127],  # Joystick Y
-                                                  [  0,  1],    # A
-                                                  [  0,  1],    # B
-                                                  [  0,  0],    # RB- unused
-                                                  [  0,  1],    # LB
-                                                  [  0,  1],    # Z
-                                                  [  0,  1]])   # C
+        self.action_space = spaces.MultiDiscrete([161,  # Joystick X
+                                                  161,  # Joystick Y
+                                                  2,    # A
+                                                  2,    # B
+                                                  1,    # RB- unused
+                                                  2,    # LB
+                                                  2,    # Z
+                                                  2])   # C
 
-    def _step(self, action):
+    def step(self, action):
         # Append unneeded inputs.
         num_missing = len(ControllerState.A_BUTTON) - len(action)
         full_action = action + [0] * num_missing
-        return super(SmashEnv, self)._step(full_action)
+        return super(SmashEnv, self).step(full_action)
 
-    def _reset(self):
+    def reset(self):
         self._my_damage_tracker = damage_tracker.DamageTracker(self.frame_skip, playernum=1)
         self._their_damage_tracker = damage_tracker.DamageTracker(self.frame_skip, playernum=2)
         self._last_dmg_step = 0
@@ -78,7 +78,7 @@ class SmashEnv(Mupen64PlusEnv):
             with self.controller_server.frame_skip_disabled():
                 # TODO: Possibly allow exiting an in-progress map?
                 pass
-        return super(SmashEnv, self)._reset()
+        return super(SmashEnv, self).reset()
 
 
     # Agressiveness hyperparam- start applying if they go too long without
