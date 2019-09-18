@@ -46,11 +46,11 @@ class MarioKartEnv(Mupen64PlusEnv):
 
         self.end_race_pixel_color = self.END_RACE_PIXEL_COLORS[self.config["GFX_PLUGIN"]]
         
-        self.action_space = spaces.MultiDiscrete([[-80, 80],  # Joystick X-axis
-                                                  [-80, 80],  # Joystick Y-axis
-                                                  [  0,  1],  # A Button
-                                                  [  0,  1],  # B Button
-                                                  [  0,  1]]) # RB Button
+        self.action_space = spaces.MultiDiscrete([161,  # Joystick X-axis
+                                                  161,  # Joystick Y-axis
+                                                  2,  # A Button
+                                                  2,  # B Button
+                                                  2]) # RB Button
 
     def _load_config(self):
         self.config.update(yaml.safe_load(open(os.path.join(os.path.dirname(inspect.stack()[0][1]), "mario_kart_config.yml"))))
@@ -61,14 +61,13 @@ class MarioKartEnv(Mupen64PlusEnv):
         if gfx_plugin not in self.END_RACE_PIXEL_COLORS:
             raise AssertionError("Video Plugin '" + gfx_plugin + "' not currently supported by MarioKart environment")
 
-    def _step(self, action):
+    def step(self, action):
         # Interpret the action choice and get the actual controller state for this step
         controls = action + [  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0]
 
-        return super(MarioKartEnv, self)._step(controls)
+        return super(MarioKartEnv, self).step(controls)
 
-    def _reset(self):
-        
+    def reset(self):
         self.lap = 1
         self.step_count_at_lap = 0
         self.last_known_lap = -1
@@ -101,7 +100,7 @@ class MarioKartEnv(Mupen64PlusEnv):
                     self._press_button(ControllerState.A_BUTTON)
                     self._wait(count=76, wait_for='race to load')
 
-        return super(MarioKartEnv, self)._reset()
+        return super(MarioKartEnv, self).reset()
 
     def _get_reward(self):
         #cprint('Get Reward called!','yellow')
