@@ -121,9 +121,9 @@ class Mupen64PlusEnv(gym.Env):
     def _validate_config(self):
         return
 
-    def _step(self, action):
+    def _step(self, action, controller=0):
         #cprint('Step %i: %s' % (self.step_count, action), 'green')
-        self._act(action)
+        self._act(action, controller=controller)
         obs = self._observe()
         self.episode_over = self._evaluate_end_state()
         reward = self._get_reward()
@@ -131,7 +131,7 @@ class Mupen64PlusEnv(gym.Env):
         self.step_count += 1
         return obs, reward, self.episode_over, {}
 
-    def _act(self, action, count=1):
+    def _act(self, action, count=1, controller=0):
         for _ in itertools.repeat(None, count):
             self.controller_server.send_controls(ControllerState(action))
 
@@ -406,12 +406,14 @@ class ControllerHTTPServer(HTTPServer, object):
         self.frame_skip = frame_skip
         self.frame_skip_enabled = True
         self.TEXT_PLAIN_CONTENT_TYPE = "text/plain".encode()
+        self.controller = 0
         super(ControllerHTTPServer, self).__init__(server_address, self.ControllerRequestHandler)
 
-    def send_controls(self, controls):
+    def send_controls(self, controls, controller=0):
         #print('Send controls called')
         self.send_count = 0
         self.controls = controls
+        self.controller = controller
         self.hold_response = False
 
         # Wait for controls to be sent:
