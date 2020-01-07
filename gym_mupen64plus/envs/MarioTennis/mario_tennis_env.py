@@ -1,6 +1,9 @@
+import inspect
+import yaml
 from gym import spaces
 from gym_mupen64plus.envs.mupen64plus_env import (ControllerState,
                                                   Mupen64PlusEnv)
+from os.path import dirname, join
 
 
 class MarioTennisEnv(Mupen64PlusEnv):
@@ -22,6 +25,17 @@ class MarioTennisEnv(Mupen64PlusEnv):
 
     def _get_reward(self):
         return 1.0
+
+    def _evaluate_end_state(self):
+        return False
+
+    def _load_config(self):
+        config = yaml.safe_load(open(join(dirname(inspect.stack()[0][1]),
+                                          'mario_tennis_config.yml')))
+        self.config.update(config)
+
+    def _validate_config(self):
+        return True
 
     def _navigate_menu(self):
         self._navigate_start_menu()
@@ -46,7 +60,7 @@ class MarioTennisEnv(Mupen64PlusEnv):
         self._press_button(ControllerState.JOYSTICK_RIGHT, times=col)
         # Select the requested player
         self._press_button(ControllerState.A_BUTTON)
-        
+
     def _set_players(self, player, opponent):
         players = {
             'mario': (0, 0),
