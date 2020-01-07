@@ -121,9 +121,9 @@ class Mupen64PlusEnv(gym.Env):
     def _validate_config(self):
         return
 
-    def _step(self, action, controller=0):
+    def _step(self, action):
         #cprint('Step %i: %s' % (self.step_count, action), 'green')
-        self._act(action, controller=controller)
+        self._act(action)
         obs = self._observe()
         self.episode_over = self._evaluate_end_state()
         reward = self._get_reward()
@@ -131,17 +131,17 @@ class Mupen64PlusEnv(gym.Env):
         self.step_count += 1
         return obs, reward, self.episode_over, {}
 
-    def _act(self, action, count=1, controller=0):
+    def _act(self, action, count=1):
         for _ in itertools.repeat(None, count):
-            self.controller_server.send_controls(ControllerState(action))
+            self.controller_server.send_controls([ControllerState(action), ControllerState(action)])
 
     def _wait(self, count=1, wait_for='Unknown'):
         self._act(ControllerState.NO_OP, count=count)
 
-    def _press_button(self, button, times=1, controller=0):
+    def _press_button(self, button, times=1):
         for _ in itertools.repeat(None, times):
-            self._act(button, controller=controller) # Press
-            self._act(ControllerState.NO_OP, controller=controller) # and release
+            self._act(button) # Press
+            self._act(ControllerState.NO_OP) # and release
 
     def _observe(self):
         #cprint('Observe called!', 'yellow')
@@ -394,26 +394,45 @@ class ControllerState(object):
     def to_json(self):
         return json.dumps(self.__dict__)
 
+    def to_json_alt(self):
+        temp = {'X_AXIS': self.X_AXIS,
+                'Y_AXIS': self.Y_AXIS,
+                'A_BUTTON': self.A_BUTTON,
+                'B_BUTTON': self.B_BUTTON,
+                'R_TRIG': self.R_TRIG,
+                'L_TRIG': self.L_TRIG,
+                'Z_TRIG': self.Z_TRIG,
+                'R_CBUTTON': self.R_CBUTTON,
+                'L_CBUTTON': self.L_CBUTTON,
+                'D_CBUTTON': self.D_CBUTTON,
+                'U_CBUTTON': self.U_CBUTTON,
+                'R_DPAD': self.R_DPAD,
+                'L_DPAD': self.L_DPAD,
+                'D_DPAD': self.D_DPAD,
+                'U_DPAD': self.U_DPAD,
+                'START_BUTTON': self.START_BUTTON}
+        return temp
+
 ###############################################
 class ControllerHTTPServer(HTTPServer, object):
 
     def __init__(self, server_address, control_timeout, frame_skip):
         self.control_timeout = control_timeout
-        self.controls = ControllerState()
+        self.contr_0_controls = ControllerState()
+        self.contr_1_controls = ControllerState()
         self.hold_response = True
         self.running = True
         self.send_count = 0
         self.frame_skip = frame_skip
         self.frame_skip_enabled = True
         self.TEXT_PLAIN_CONTENT_TYPE = "text/plain".encode()
-        self.controller = 0
         super(ControllerHTTPServer, self).__init__(server_address, self.ControllerRequestHandler)
 
-    def send_controls(self, controls, controller=0):
+    def send_controls(self, controls):
         #print('Send controls called')
         self.send_count = 0
-        self.controls = controls
-        self.controller = controller
+        self.contr_0_controls = controls[0]
+        self.contr_1_controls = controls[1]
         self.hold_response = False
 
         # Wait for controls to be sent:
@@ -442,7 +461,8 @@ class ControllerHTTPServer(HTTPServer, object):
             self.send_response(resp_code)
             self.send_header("Content-type", self.server.TEXT_PLAIN_CONTENT_TYPE)
             self.end_headers()
-            self.wfile.write(resp_data.encode())
+            for resp in resp_data:
+                self.wfile.write(json.dumps(resp).encode())
 
         def do_GET(self):
 
@@ -456,7 +476,12 @@ class ControllerHTTPServer(HTTPServer, object):
                 self.write_response(500, "SHUTDOWN")
 
             ### respond with controller output
-            self.write_response(200, self.server.controls.to_json())
+            #self.write_response(200, self.server.controls.to_json())
+            response = [
+                self.server.contr_0_controls.to_json_alt(),
+                self.server.contr_1_controls.to_json_alt()
+            ]
+            self.write_response(200, response)
             self.server.send_count += 1
 
             # If we have sent the controls 'n' times, now we block until the next action is sent

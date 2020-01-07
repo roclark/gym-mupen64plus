@@ -268,10 +268,12 @@ class MarioKartEnv(Mupen64PlusEnv):
 
     def _navigate_game_select(self):
         # Select number of players (1 player highlighted by default)
+        self._press_button(ControllerState.JOYSTICK_RIGHT)
         self._press_button(ControllerState.A_BUTTON)
         self._wait(count=3, wait_for='animation')
 
         # Select GrandPrix or TimeTrials (GrandPrix highlighted by default - down to switch to TimeTrials)
+        self._press_button(ControllerState.JOYSTICK_DOWN)
         self._press_button(ControllerState.JOYSTICK_DOWN)
         self._wait(count=3, wait_for='animation')
 
@@ -297,6 +299,9 @@ class MarioKartEnv(Mupen64PlusEnv):
         self._press_button(ControllerState.JOYSTICK_RIGHT, times=self.PLAYER_COL)
 
         # Select character
+        self._press_button(ControllerState.A_BUTTON)
+
+        # Player 2 character select
         self._press_button(ControllerState.A_BUTTON)
 
         # Press OK
