@@ -59,6 +59,8 @@ class MarioTennisEnv(Mupen64PlusEnv):
         # Skip intro
         self._wait(count=200, wait_for='Pregame intro')
         self._act(ControllerState.A_BUTTON, count=2)
+        self._wait(count=50, wait_for='Versus Screen')
+        self._act(ControllerState.A_BUTTON, count=2)
 
     def _navigate_start_menu(self):
         self._wait(count=140, wait_for='Nintendo Screen')
