@@ -1,5 +1,7 @@
 ################################################################
-FROM ubuntu:xenial-20170915 AS base
+# The 19.06 release is the latest NGC release based on Xenial, required
+# for Mupen64plus building. Might work with newer OS versions too.
+FROM nvcr.io/nvidia/pytorch:19.06-py3 AS base
 
 
 # Setup environment variables in a single layer
@@ -43,7 +45,7 @@ FROM base
 # Update package cache and install dependencies
 RUN apt-get update && \
     apt-get install -y \
-        python python-pip python-setuptools python-dev \
+        libjson-c2 \
         wget \
         xvfb libxv1 x11vnc \
         imagemagick \
