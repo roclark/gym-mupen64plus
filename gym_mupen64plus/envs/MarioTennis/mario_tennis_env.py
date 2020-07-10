@@ -1,9 +1,12 @@
+import cv2
 import inspect
+import numpy as np
 import yaml
 from abc import ABCMeta
 from gym import spaces
 from gym_mupen64plus.envs.mupen64plus_env import (ControllerState,
                                                   Mupen64PlusEnv)
+from gym_mupen64plus.envs.MarioTennis.score_tracker import ScoreParser
 from os.path import dirname, join
 
 
@@ -12,6 +15,9 @@ class MarioTennisEnv(Mupen64PlusEnv):
 
     def __init__(self, player='mario', opponent='luigi', court='open'):
         self._set_players(player, opponent)
+        self.counter_im = 0
+        self.score_parser = ScoreParser()
+        self._episode_over = False
 
         super(MarioTennisEnv, self).__init__()
         self.action_space = spaces.MultiDiscrete([[-128, 127],
@@ -32,14 +38,49 @@ class MarioTennisEnv(Mupen64PlusEnv):
     def _reset(self):
         if self.reset_count > 0:
             with self.controller_server.frame_skip_disabled():
-                pass
+                if self._episode_over:
+                    self._navigate_postgame()
+                    self._navigate_player_select()
+                    self._navigate_game()
+                    self._select_opponent()
+                    self._select_court()
+                    self.score_parser.queue.clear()
+                    self._episode_over = False
+                else:
+                    self._navigate_endgame()
         return super(MarioTennisEnv, self)._reset()
 
     def _get_reward(self):
+        reward = self.score_parser.reward(self.pixel_array)
+        #print(reward)
+        #return reward
+        self.counter_im += 1
+        img = cv2.cvtColor(self.pixel_array[165:275, 145:495, :], cv2.COLOR_BGR2HSV)
+        lower = np.array([85, 200, 220])
+        upper = np.array([130, 255, 255])
+        mask = cv2.inRange(img, lower, upper)
+        img = cv2.bitwise_and(img, img, mask=mask)
+        lower = np.array([5, 5, 5])
+        upper = np.array([255, 255, 255])
+        img[mask != 0] = [255, 255, 255]
+        best = 0.0
+        best_key = None
+
+        for key, image in self.score_parser._templates.items():
+            intersection = np.sum(np.logical_and(img, image))
+            union = np.sum(np.logical_or(img, image))
+            miou = intersection / float(union)
+            if miou > best and miou > 0.35:
+                best = miou
+                best_key = key
+        #if best == 0.0:
+        #    return 1.0
+        cv2.imwrite('%s.jpg' % self.counter_im, img)
         return 1.0
 
     def _evaluate_end_state(self):
-        return False
+        self._episode_over = True
+        return self.score_parser.match_complete
 
     def _load_config(self):
         config = yaml.safe_load(open(join(dirname(inspect.stack()[0][1]),
@@ -116,6 +157,51 @@ class MarioTennisEnv(Mupen64PlusEnv):
     def _select_court(self):
         self._wait(count=150, wait_for='Court selection')
         self._act(ControllerState.A_BUTTON, count=2)
+
+    def _navigate_postgame(self):
+        # Wait for final replay screen
+        self._wait(count=200, wait_for='Replay Start')
+        self._act(ControllerState.A_BUTTON, count=2)
+        # Exit final replay
+        self._wait(count=400, wait_for='Post Game Stats')
+        self._act(ControllerState.A_BUTTON, count=2)
+        # Exit post game stats back to main menu
+        self._wait(count=200, wait_for='Post Game')
+        self._act(ControllerState.A_BUTTON, count=2)
+        # Select single player
+        self._wait(count=170, wait_for='Main Menu')
+        self._act(ControllerState.A_BUTTON, count=2)
+
+    def _navigate_endgame(self):
+        # Can't pause the match until fully loaded
+        if (self.step_count * self.controller_server.frame_skip) < 30:
+            steps_to_wait = 30 - (self.step_count * self.controller_server.frame_skip)
+            self._wait(count=steps_to_wait, wait_for='Match to load')
+        # Load the in-game menu
+        self._act(ControllerState.START_BUTTON, count=2)
+        self._wait(count=20, wait_for='Pause screen loaded')
+        # Navigate to the save progress option
+        for _ in range(3):
+            self._act(ControllerState.JOYSTICK_RIGHT, count=2)
+            self._wait(count=5, wait_for='Next selection')
+        # Select the save progress sub-menu
+        self._act(ControllerState.A_BUTTON, count=2)
+        self._wait(count=40, wait_for='Save progress screen')
+        # Navigate to the end game button
+        self._act(ControllerState.JOYSTICK_UP, count=2)
+        self._wait(count=5, wait_for='Save progress to end game')
+        # Select the end game button
+        self._act(ControllerState.A_BUTTON, count=2)
+        self._wait(count=10, wait_for='End game menu')
+        # Navigate to the main menu button
+        self._act(ControllerState.JOYSTICK_LEFT, count=2)
+        self._wait(count=5, wait_for='Navigate to menu button')
+        # Select the main menu button
+        self._act(ControllerState.A_BUTTON, count=2)
+        self._wait(count=170, wait_for='Main menu to load')
+        # Select single player
+        self._act(ControllerState.A_BUTTON, count=2)
+        raw_input('HERE')
 
     def _set_players(self, player, opponent):
         players = {
