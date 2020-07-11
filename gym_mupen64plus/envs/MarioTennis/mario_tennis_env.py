@@ -16,7 +16,7 @@ class MarioTennisEnv(Mupen64PlusEnv):
     def __init__(self, player='mario', opponent='luigi', court='open'):
         self._set_players(player, opponent)
         self.counter_im = 0
-        self.score_parser = ScoreParser()
+        self.score_parser = ScoreParser(player, opponent)
         self._episode_over = False
 
         super(MarioTennisEnv, self).__init__()
@@ -45,13 +45,22 @@ class MarioTennisEnv(Mupen64PlusEnv):
                     self._select_opponent()
                     self._select_court()
                     self.score_parser.queue.clear()
+                    self.score_parser._serving = True
                     self._episode_over = False
                 else:
                     self._navigate_endgame()
+                    self._navigate_player_select()
+                    self._navigate_game()
+                    self._select_opponent()
+                    self._select_court()
+                    self.score_parser.queue.clear()
+                    self.score_parser._serving = True
         return super(MarioTennisEnv, self)._reset()
 
     def _get_reward(self):
         reward = self.score_parser.reward(self.pixel_array)
+        if reward != 0.0:
+            print(reward)
         #print(reward)
         #return reward
         self.counter_im += 1
@@ -76,7 +85,7 @@ class MarioTennisEnv(Mupen64PlusEnv):
         #if best == 0.0:
         #    return 1.0
         cv2.imwrite('%s.jpg' % self.counter_im, img)
-        return 1.0
+        return reward
 
     def _evaluate_end_state(self):
         self._episode_over = True
@@ -201,7 +210,6 @@ class MarioTennisEnv(Mupen64PlusEnv):
         self._wait(count=170, wait_for='Main menu to load')
         # Select single player
         self._act(ControllerState.A_BUTTON, count=2)
-        raw_input('HERE')
 
     def _set_players(self, player, opponent):
         players = {

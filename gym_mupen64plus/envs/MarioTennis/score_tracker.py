@@ -28,8 +28,10 @@ class ScoreQueue:
 
 
 class ScoreParser:
-    def __init__(self):
+    def __init__(self, player, opponent):
         self._current_score = '0-0'
+        self._player = player
+        self._opponent = opponent
         self.queue = ScoreQueue(max_length=3)
         self._serving = True
         self._templates = {
@@ -51,12 +53,18 @@ class ScoreParser:
             'deuce': cv2.imread('/src/saved_images/deuce.jpg', -1),
             'adv-40': cv2.imread('/src/saved_images/adv_40.jpg', -1),
             #'40-adv': cv2.imread('/src/saved_images/40_adv.jpg', -1),
-            'match-complete': cv2.imread('/src/saved_images/match_complete.jpg', -1)
+            'match-complete': cv2.imread('/src/saved_images/match_complete.jpg', -1),
+            'game-mario': cv2.imread('/src/saved_images/game_mario.jpg', -1),
+            'game-luigi': cv2.imread('/src/saved_images/game_luigi.jpg', -1)
         }
 
     @property
     def current_score(self):
         return self._current_score
+
+    def _toggle_server(self):
+        # Toggle the server after the completion of a game
+        self._serving = not self._serving
 
     def _parse_image(self, pixel_array):
         img = cv2.cvtColor(pixel_array[165:275, 145:495, :], cv2.COLOR_BGR2HSV)
@@ -146,7 +154,10 @@ class ScoreParser:
         if 'adv' in old_score:
             old_score = '0-0'
         if new_score == 'match-complete':
+            self.current_score = '0-0'
             return self._determine_match_winner(new_score)
+        if 'game' in old_score or 'match' in old_score:
+            old_score = '0-0'
 
         old_server, old_returner = old_score.split('-')
         new_server, new_returner = new_score.split('-')
@@ -165,12 +176,26 @@ class ScoreParser:
             return 1.0
         return 0.0
 
+    def _determine_game_winner(self, best_fit):
+        # Best fit is in format game-player-name. We only want the player-name,
+        # which can be parsed by stripping the prefix.
+        player = best_fit.replace('game-', '')
+        if player == self._player:
+            return 1.0
+        elif player == self._opponent:
+            return -1.0
+        return 0.0
+
     def reward(self, pixel_array):
         reward = 0.0
         img = self._parse_image(pixel_array)
         best_fit = self._best_fit_score(img)
         if self.queue.perfect_duplicates and best_fit != self.current_score:
-            reward = self._determine_winner(best_fit, self.current_score)
+            if 'game' in best_fit:
+                reward = self._determine_game_winner(best_fit)
+                self._toggle_server()
+            else:
+                reward = self._determine_winner(best_fit, self.current_score)
             self.current_score = best_fit
         return reward
 
