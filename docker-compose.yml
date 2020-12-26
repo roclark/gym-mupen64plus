@@ -1,0 +1,27 @@
+version: '3.2'
+services:
+  head:
+    image: roclark/gym-mupen64plus:rllib-update
+    shm_size: 8gb
+    ports:
+      - 8265:8265
+    networks:
+      - ray-network
+    entrypoint:
+      'bash -c "ray start --head --dashboard-host 0.0.0.0 --port=6379 --num-cpus 0 --num-gpus 0 && python3 train.py --environment Mario-Kart-Discrete-Luigi-Raceway-v0 --workers 7"'
+
+  agent:
+    image: roclark/gym-mupen64plus:rllib-update
+    shm_size: 8gb
+    depends_on:
+      - head
+    ports:
+      - 5900-5906:5900
+    networks:
+      - ray-network
+    entrypoint:
+      'bash -c "ray start --address=head:6379 --redis-password=5241590000000000 --num-cpus 1 && sleep 10 && x11vnc -forever -viewonly -shared -nopw -noshm"'
+
+networks:
+  ray-network:
+    driver: bridge
