@@ -28,7 +28,7 @@ def parse_args():
                         'together to feed into the network.', type=int,
                         default=4)
     parser.add_argument('--gpus', help='Number of GPUs to include in the '
-                        'cluster.', type=int, default=0)
+                        'cluster.', type=float, default=0)
     parser.add_argument('--iterations', help='Number of iterations to train '
                         'for.', type=int, default=1000000)
     parser.add_argument('--workers', help='Number of workers to launch on the '
@@ -82,23 +82,27 @@ def main():
         'train_batch_size': 500,
         'num_workers': args.workers,
         'num_envs_per_worker': 1,
-        'num_gpus': args.gpus
+        'num_gpus': args.gpus,
+        'lr': tune.grid_search([0.01, 0.001, 0.0001, 0.00001])
     }
     ray.init(address='head:6379', _redis_password='5241590000000000')
 
     register_env('mario_kart', env_creator_lambda)
-    trainer = ImpalaTrainer(config=config)
+    import time
+    time.sleep(5)
+    tune.run('IMPALA', stop={'timesteps_total': 2000000}, config=config)
+    #trainer = ImpalaTrainer(config=config)
 
-    if args.checkpoint:
-        trainer.restore(args.checkpoint)
+    #if args.checkpoint:
+    #    trainer.restore(args.checkpoint)
 
-    for iteration in range(args.iterations):
-        result = trainer.train()
-        print_results(result, iteration)
+    #for iteration in range(args.iterations):
+    #    result = trainer.train()
+    #    print_results(result, iteration)
 
-        if iteration % 50 == 0:
-            checkpoint = trainer.save()
-            print('Checkpoint saved at', checkpoint)
+    #    if iteration % 50 == 0:
+    #        checkpoint = trainer.save()
+    #        print('Checkpoint saved at', checkpoint)
 
 
 if __name__ == "__main__":

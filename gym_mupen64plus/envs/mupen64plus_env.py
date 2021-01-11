@@ -131,7 +131,7 @@ class Mupen64PlusEnv(gym.Env):
         # for proper coordination with the controller class. All other actions
         # are in the expected range and should be left untouched.
         try:
-            return [x - 80 if i < 2 else x for i, x in enumerate(action)]
+            return action
         except TypeError:
             # Happens for discrete action spaces, in which case the action is
             # already defined as expected and should return as-is.

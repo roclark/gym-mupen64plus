@@ -18,7 +18,9 @@ def _create_action_map():
         ("ZBUTTON",   [0, 0, 0, 0, 1, 0]),
         ("CBUTTON",   [0, 0, 0, 0, 0, 1]),
     ]
-    actions = []
+    actions = [
+        ("NOOP", [0, 0, 0, 0, 0, 0, 0, 0])
+    ]
     for xmag in joystick_magnitudes:
         for ymag in joystick_magnitudes:
             for button in allowed_buttons:
@@ -49,7 +51,7 @@ class SmashDiscreteEnv(SmashEnv):
 
     def __init__(self, my_character='pikachu', their_character='dk',
                  my_character_color='CUP', their_character_color='CLEFT',
-                 opponent_bot_level=10, map='DreamLand'):
+                 opponent_bot_level=2, map='DreamLand'):
         super(SmashDiscreteEnv, self).__init__(
             my_character=my_character, their_character=their_character,
             my_character_color=my_character_color,
@@ -64,3 +66,6 @@ class SmashDiscreteEnv(SmashEnv):
         controls = DiscreteActions.get_controls_from_action(action)
 
         return super(SmashDiscreteEnv, self).step(controls)
+
+    def get_action_meanings(self):
+        return [key for key, mapping in DiscreteActions.ACTION_MAP]

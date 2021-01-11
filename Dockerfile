@@ -31,7 +31,7 @@ RUN git clone https://github.com/mupen64plus/mupen64plus-core && \
     cd .. && \
     git clone https://github.com/kevinhughes27/mupen64plus-input-bot && \
         cd mupen64plus-input-bot && \
-        git reset --hard 40eff412eca6491acb7f70932b87b404c9c3ef70 && \
+        git reset --hard 0a1432035e2884576671ef9777a2047dc6c717a2 && \
     make all && \
     make install
 
@@ -96,9 +96,10 @@ COPY ["./gym_mupen64plus/envs/Smash/smash.sra", "/root/.local/share/mupen64plus/
 WORKDIR /src/gym-mupen64plus
 RUN pip3 install -e . \
         torch \
+        tensorboard \
         ray[rllib]
 
-COPY train.py /src
+COPY sac.py /src/train.py
 
 # Declare ROMs as a volume for mounting a host path outside the container
 VOLUME /src/gym-mupen64plus/gym_mupen64plus/ROMs/
