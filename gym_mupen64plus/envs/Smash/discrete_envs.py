@@ -18,7 +18,9 @@ def _create_action_map():
         ("ZBUTTON",   [0, 0, 0, 0, 1, 0]),
         ("CBUTTON",   [0, 0, 0, 0, 0, 1]),
     ]
-    actions = []
+    actions = [
+        ("NOOP", [0, 0, 0, 0, 0, 0, 0, 0])
+    ]
     for xmag in joystick_magnitudes:
         for ymag in joystick_magnitudes:
             for button in allowed_buttons:
@@ -64,3 +66,6 @@ class SmashDiscreteEnv(SmashEnv):
         controls = DiscreteActions.get_controls_from_action(action)
 
         return super(SmashDiscreteEnv, self).step(controls)
+
+    def get_action_meanings(self):
+        return [key for key, mapping in DiscreteActions.ACTION_MAP]

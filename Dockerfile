@@ -94,14 +94,21 @@ RUN pip install \
 COPY --from=buildstuff /usr/local/lib/mupen64plus/mupen64plus-input-bot.so /usr/local/lib/mupen64plus/
 
 # Copy the gym environment (current directory)
-COPY . /src/gym-mupen64plus
+COPY gym_mupen64plus /src/gym-mupen64plus/gym_mupen64plus
+COPY setup.py /src/gym-mupen64plus
+
 # Copy the Super Smash Bros. save file to the mupen64plus save directory
 # mupen64plus expects a specific filename, hence the awkward syntax and name
 COPY [ "./gym_mupen64plus/envs/Smash/smash.sra", "/root/.local/share/mupen64plus/save/Super Smash Bros. (U) [!].sra" ]
 
 # Install requirements & this package
 WORKDIR /src/gym-mupen64plus
-RUN pip install -e .
+RUN pip3 install -e . \
+        torch \
+        tensorboard \
+        ray[rllib]
+
+COPY train.py /src
 
 # Declare ROMs as a volume for mounting a host path outside the container
 VOLUME /src/gym-mupen64plus/gym_mupen64plus/ROMs/
