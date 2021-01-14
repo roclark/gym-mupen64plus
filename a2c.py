@@ -4,7 +4,7 @@ import ray
 from argparse import ArgumentParser
 from ray import tune
 from ray.tune.registry import register_env
-from ray.rllib.agents.impala import ImpalaTrainer
+from ray.rllib.agents.a3c import A2CTrainer
 from ray.rllib.env.atari_wrappers import (MonitorEnv,
                                           NoopResetEnv,
                                           WarpFrame,
@@ -28,7 +28,7 @@ def parse_args():
                         'together to feed into the network.', type=int,
                         default=4)
     parser.add_argument('--gpus', help='Number of GPUs to include in the '
-                        'cluster.', type=float, default=0)
+                        'cluster.', type=int, default=0)
     parser.add_argument('--iterations', help='Number of iterations to train '
                         'for.', type=int, default=1000000)
     parser.add_argument('--workers', help='Number of workers to launch on the '
@@ -49,7 +49,7 @@ def env_creator(env_name, config, dim, framestack):
 
 
 def print_results(result, iteration):
-    table = [['IMPALA',
+    table = [['A2C',
               iteration,
               result['timesteps_total'],
               round(result['episode_reward_max'], 3),
@@ -78,21 +78,20 @@ def main():
     config = {
         'env': 'mario_kart',
         'framework': 'torch',
-        'rollout_fragment_length': 50,
-        'train_batch_size': 500,
+        'rollout_fragment_length': 20,
+        'clip_rewards': True,
         'num_workers': args.workers,
         'num_envs_per_worker': 1,
         'num_gpus': args.gpus,
-        #'lr': tune.grid_search([0.01, 0.001, 0.0001, 0.00001])
-        'lr': 0.01
+        'lr_schedule': [
+            [0, 0.0007],
+            [20000000, 0.000000000001],
+        ]
     }
     ray.init(address='head:6379', _redis_password='5241590000000000')
 
     register_env('mario_kart', env_creator_lambda)
-    #import time
-    #time.sleep(5)
-    #tune.run('IMPALA', stop={'timesteps_total': 2000000}, config=config)
-    trainer = ImpalaTrainer(config=config)
+    trainer = A2CTrainer(config=config)
 
     if args.checkpoint:
         trainer.restore(args.checkpoint)

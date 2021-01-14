@@ -51,6 +51,7 @@ class SmashEnv(Mupen64PlusEnv):
         super(SmashEnv, self).__init__()
         self._my_damage_tracker = damage_tracker.DamageTracker(self.frame_skip, playernum=1)
         self._their_damage_tracker = damage_tracker.DamageTracker(self.frame_skip, playernum=2)
+        self._my_deaths, self._their_deaths = 0, 0
         self.action_space = spaces.MultiDiscrete([161,  # Joystick X
                                                   161,  # Joystick Y
                                                   2,    # A
@@ -77,13 +78,21 @@ class SmashEnv(Mupen64PlusEnv):
             # Make sure we don't skip frames while navigating the menus
             with self.controller_server.frame_skip_disabled():
                 # TODO: Possibly allow exiting an in-progress map?
-                pass
+                self._press_button(ControllerState.START_BUTTON)
+                self._press_button([0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+                self._wait(count=50)
+                self._press_button(ControllerState.B_BUTTON)
+                self._navigate_player_select()
+                self._navigate_map_select()
+            self._my_deaths = 0
+            self._their_deaths = 0
         return super(SmashEnv, self).reset()
 
 
     # Agressiveness hyperparam- start applying if they go too long without
     # either taking or giving damage.
     def _get_aggressiveness_penalty(self):
+        return 0.0
         frames_since_dmg = (self.step_count - self._last_dmg_step) * self.frame_skip
         # Apply if we've gone 4 seconds without any damage.
         if frames_since_dmg > 4 * FRAMES_PER_SECOND:
@@ -106,8 +115,12 @@ class SmashEnv(Mupen64PlusEnv):
         if their_dmg_taken > 0:
             reward += their_dmg_taken * dmg_factor
         if me_died:
+            print('DIED')
+            self._my_deaths += 1
             reward -= death_factor
         if they_died:
+            print('KO!')
+            self._their_deaths += 1
             reward += death_factor
         if (me_died or they_died or my_dmg_taken != 0 or their_dmg_taken != 0):
             self._last_dmg_step = self.step_count
@@ -246,6 +259,8 @@ class SmashEnv(Mupen64PlusEnv):
         pass
 
     def _evaluate_end_state(self):
+        if self._my_deaths > 3 or self._their_deaths > 3:
+            return True
         return False
 
     def _load_config(self):

@@ -1,7 +1,7 @@
 version: '3.5'
 services:
   head:
-    image: gym-mupen64plus:rllib-sac
+    image: gym-mupen64plus:rllib-ppo
     shm_size: 8gb
     ports:
       - 8265:8265
@@ -11,24 +11,24 @@ services:
     volumes:
       - ./ray_results:/root/ray_results
     entrypoint:
-      'bash -c "ray start --head --dashboard-host 0.0.0.0 --port=6379 --num-cpus 0 --num-gpus 0 && tensorboard --logdir ~/ray_results --bind_all & python3 train.py --environment Mario-Kart-Discrete-Luigi-Raceway-v0 --workers 16"'
+      'bash -c "ray start --head --dashboard-host 0.0.0.0 --port=6379 --num-cpus 0 --num-gpus 0 && tensorboard --logdir ~/ray_results --bind_all & python3 train.py --environment Mario-Kart-Discrete-Luigi-Raceway-v0 --workers 16 --gpus 1"'
 
   agent:
     runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
-    image: gym-mupen64plus:rllib-sac
+    image: gym-mupen64plus:rllib-ppo
     shm_size: 8gb
     depends_on:
       - head
     ports:
-      - 5900-5915:5900
+      - 5900-5916:5900
     networks:
       - ray-network
     entrypoint:
       #'bash -c "ray start --address=head:6379 --redis-password=5241590000000000 --num-cpus 1 --num-gpus 1 && tail -f /dev/null"'
-      'bash -c "ray start --address=head:6379 --redis-password=5241590000000000 --num-cpus 1 --num-gpus 1 && sleep 10 && x11vnc -forever -viewonly -shared -nopw -noshm"'
+      'bash -c "ray start --address=head:6379 --redis-password=5241590000000000 --num-cpus 1 --num-gpus 1 && until ps aux | grep -i "[x]vfb" > /dev/null; do sleep 1; done && x11vnc -forever -viewonly -shared -nopw -noshm"'
 
 networks:
   ray-network:

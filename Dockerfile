@@ -99,7 +99,7 @@ RUN pip3 install -e . \
         tensorboard \
         ray[rllib]
 
-COPY sac.py /src/train.py
+COPY ppo.py /src/train.py
 
 # Declare ROMs as a volume for mounting a host path outside the container
 VOLUME /src/gym-mupen64plus/gym_mupen64plus/ROMs/

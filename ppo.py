@@ -4,7 +4,7 @@ import ray
 from argparse import ArgumentParser
 from ray import tune
 from ray.tune.registry import register_env
-from ray.rllib.agents.impala import ImpalaTrainer
+from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.env.atari_wrappers import (MonitorEnv,
                                           NoopResetEnv,
                                           WarpFrame,
@@ -49,7 +49,7 @@ def env_creator(env_name, config, dim, framestack):
 
 
 def print_results(result, iteration):
-    table = [['IMPALA',
+    table = [['PPO',
               iteration,
               result['timesteps_total'],
               round(result['episode_reward_max'], 3),
@@ -78,32 +78,40 @@ def main():
     config = {
         'env': 'mario_kart',
         'framework': 'torch',
-        'rollout_fragment_length': 50,
-        'train_batch_size': 500,
+        'lr': 0.0003,
+        'lambda': 0.95,
+        'gamma': 0.99,
+        'sgd_minibatch_size': tune.grid_search([256, 512, 1024]),
+        'train_batch_size': tune.grid_search([4000, 10000, 40000]),
+        'vf_clip_param': tune.grid_search([0.1, 10, 100, 1000]),
+        'clip_param': 0.2,
+        'num_sgd_iter': 10,
+        'rollout_fragment_length': 200,
         'num_workers': args.workers,
         'num_envs_per_worker': 1,
         'num_gpus': args.gpus,
-        #'lr': tune.grid_search([0.01, 0.001, 0.0001, 0.00001])
-        'lr': 0.01
+        'model': {
+            'fcnet_hiddens': [512, 512]
+        }
     }
     ray.init(address='head:6379', _redis_password='5241590000000000')
 
     register_env('mario_kart', env_creator_lambda)
-    #import time
-    #time.sleep(5)
-    #tune.run('IMPALA', stop={'timesteps_total': 2000000}, config=config)
-    trainer = ImpalaTrainer(config=config)
+    import time
+    time.sleep(5)
+    tune.run('PPO', stop={'timesteps_total': 500000}, config=config)
+    #trainer = PPOTrainer(config=config)
 
-    if args.checkpoint:
-        trainer.restore(args.checkpoint)
+    #if args.checkpoint:
+    #    trainer.restore(args.checkpoint)
 
-    for iteration in range(args.iterations):
-        result = trainer.train()
-        print_results(result, iteration)
+    #for iteration in range(args.iterations):
+    #    result = trainer.train()
+    #    print_results(result, iteration)
 
-        if iteration % 50 == 0:
-            checkpoint = trainer.save()
-            print('Checkpoint saved at', checkpoint)
+    #    if iteration % 50 == 0:
+    #        checkpoint = trainer.save()
+    #        print('Checkpoint saved at', checkpoint)
 
 
 if __name__ == "__main__":
